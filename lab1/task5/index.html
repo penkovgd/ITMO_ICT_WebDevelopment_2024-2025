@@ -207,6 +207,7 @@
 <h2 id="_3">Решение</h2>
 <p><code>HTTPserver.py</code></p>
 <pre><code>import socket
+from threading import Thread
 from HTTPRequest import HTTPRequest
 from HTTPResponse import HTTPResponse
 from Course import Course
@@ -215,7 +216,8 @@ from CourseRepository import CourseRepository
 
 &quot;&quot;&quot;
 GET /courses/
-POST /courses?name=&amp;grade=
+POST /courses/ 
+name=&amp;grade=
 &quot;&quot;&quot;
 
 
@@ -233,12 +235,16 @@ class HTTPServer:
             print(f&quot;Listening on {self._host}:{self._port}&quot;)
 
             while True:
-                client_socket, client_address = server_socket.accept()
                 try:
-                    self.serve_client(client_socket)
+                    client_socket, client_address = server_socket.accept()
+                    client_thread = Thread(
+                        target=self.serve_client, args=(client_socket,)
+                    )
+                    client_thread.start()
                 except Exception as e:
                     print(&quot;Client serving failed: &quot;, e)
         finally:
+            print(&quot;Server is shutting down..&quot;)
             server_socket.close()
 
     def serve_client(self, client_socket: socket.socket):
@@ -264,35 +270,32 @@ class HTTPServer:
                 break
         return data.decode()
 
-    def handle_request(self, request: HTTPRequest):
+    def handle_request(self, request: HTTPRequest) -&gt; HTTPResponse:
         match request.path:
             case &quot;/courses&quot;:
                 match request.method:
                     case &quot;GET&quot;:
                         courses = self._course_repo.get_courses()
                         body = self.get_html_courses(courses)
-                        headers = [
-                            (
-                                &quot;Content-Type&quot;,
-                                &quot;text/html; charset=utf-8&quot;,
-                            ),
-                            (&quot;Content-Length&quot;, len(body)),
-                        ]
-                        return HTTPResponse(200, &quot;OK&quot;, headers, body)
+                        return HTTPResponse(200, &quot;OK&quot;, body=body)
                     case &quot;POST&quot;:
-                        if request.query_params is None:
-                            raise ValueError(&quot;No query parameters provided&quot;)
-                        self._course_repo.insert_course(
-                            request.query_params[&quot;name&quot;],
-                            int(request.query_params[&quot;grade&quot;]),
-                        )
-                        return HTTPResponse(201, &quot;Created&quot;)
+                        body = request.body
+                        if body:
+                            params = dict(pair.split(&quot;=&quot;) for pair in body.split(&quot;&amp;&quot;))
+                            name = params.get(&quot;name&quot;, &quot;&quot;)
+                            grade = params.get(&quot;grade&quot;, &quot;&quot;)
+                            if name and grade:
+                                self._course_repo.insert_course(
+                                    name=name, grade=int(grade)
+                                )
+                                return HTTPResponse(201, &quot;Created&quot;)
+                        return HTTPResponse(400, &quot;Bad Request&quot;)
+                    case _:
+                        return HTTPResponse(404, &quot;Not Found&quot;)
             case _:
-                return HTTPResponse(400, &quot;Bad Request&quot;)
+                return HTTPResponse(404, &quot;Not Found&quot;)
 
-    def send_response(
-        self, client_socket: socket.socket, response: HTTPResponse
-    ):
+    def send_response(self, client_socket: socket.socket, response: HTTPResponse):
         response_str = response.get_response_str()
         client_socket.sendall(response_str.encode())
         print(f&quot;Sent:\n{response_str}&quot;)
@@ -329,12 +332,15 @@ if __name__ == &quot;__main__&quot;:
 
 </code></pre>
 <p><code>HTTPRequest.py</code></p>
-<pre><code>class HTTPRequest:
+<pre><code>from typing import Any
+
+
+class HTTPRequest:
     def __init__(self, data):
         self.method = None
         self.uri = None
         self.path = None
-        self.query_params: dict[str, any] | None = None
+        self.query_params: dict[str, Any] | None = None
         self.version = &quot;HTTP/1.1&quot;
         self.headers: dict[str, str] = dict()
         self.body: str | None = None
@@ -364,6 +370,8 @@ if __name__ == &quot;__main__&quot;:
         self.body = &quot;\n&quot;.join(lines[body_start_index:])
 
     def parse_uri(self):
+        if not self.uri:
+            return Exception(&quot;Invalid URI&quot;)
         if &quot;?&quot; in self.uri:
             self.path, query = self.uri.split(&quot;?&quot;, 1)
             self.parse_query(query)
@@ -389,7 +397,7 @@ if __name__ == &quot;__main__&quot;:
         self.status = status
         self.status_text = status_text
         self.headers = headers
-        self.body = body
+        self.body: str | None = body
         self.version = &quot;HTTP/1.1&quot;
 
     def get_response_str(self) -&gt; str:
@@ -401,6 +409,12 @@ if __name__ == &quot;__main__&quot;:
             for key, value in self.headers:
                 header_line = f&quot;{key}: {value}\r\n&quot;
                 response += header_line
+        else:
+            headers = &quot;Content-Type: text/html; charset=utf-8\r\n&quot;
+            headers += (
+                f&quot;Content-Length: {len(self.body.encode()) if self.body else 0}\r\n&quot;
+            )
+            response += headers
         response += &quot;\r\n&quot;
 
         if self.body:
@@ -425,7 +439,6 @@ class Course:
 
 
 class CourseRepository:
-
     def __init__(self):
         self.courses: list[Course] = []
 
@@ -434,6 +447,8 @@ class CourseRepository:
 
     def insert_course(self, name: str, grade: int):
         id = len(self.courses) + 1
+        if grade &lt; 0:
+            raise Exception(&quot;Grade must not be negative.&quot;)
         course = Course(id, name, grade)
         self.courses.append(course)
 
@@ -442,8 +457,8 @@ class CourseRepository:
 <p><strong>GET /courses</strong> - получить все курсы</p>
 <pre><code class="language-bash">$ curl localhost:1234/courses -i
 </code></pre>
-<p><strong>POST /courses?name=&amp;grade=</strong> - создать новый курс с именем и оценкой</p>
-<pre><code class="language-bash">$ curl localhost:1234/courses?name=WEB\&amp;grade=5 -X POST -i
+<p><strong>POST /courses</strong> - создать новый курс с именем и оценкой</p>
+<pre><code class="language-bash">$ curl localhost:1234/courses -d name=WEB\&amp;grade=5 -i
 </code></pre></p>
     </article>
 </section>
