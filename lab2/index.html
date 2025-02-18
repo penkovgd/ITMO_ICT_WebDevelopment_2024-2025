@@ -639,6 +639,26 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../leetcode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Задачи leetcode
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -763,11 +783,13 @@
 <p><img alt="ERD" src="ERD.drawio.png" /></p>
 <h3 id="api">API</h3>
 <h3 id="app-users">App users</h3>
+<p><img alt="register" src="image-5.png" /></p>
 <p><code>POST /users/register/</code> - Регистрация пользователя</p>
 <p><strong>Тело запроса:</strong><br />
 - <code>username</code>: Имя пользователя.
 - <code>password</code>: Пароль.</p>
 <hr />
+<p><img alt="login" src="image-6.png" /></p>
 <p><code>POST /users/login/</code> - Аутентифицирует существующего пользователя.</p>
 <p><strong>Тело запроса:</strong><br />
 - <code>username</code>: Имя пользователя.
@@ -775,24 +797,29 @@
 <hr />
 <p><code>POST /users/logout/</code> - Завершает сессию пользователя.</p>
 <h3 id="app-flights">App flights</h3>
+<p><img alt="flights" src="image.png" /></p>
 <p><code>GET /flights/?page=&amp;q=</code> - Возвращает список рейсов.</p>
 <p>Реализована пагинация и поиск по следующим полям Flight:
 - number
 - direction
 - airline.name</p>
 <hr />
+<p><img alt="flight-detail" src="image-1.png" /></p>
 <p><code>GET /flights/&lt;int:pk&gt;</code> - Возвращает детальную информацию о конкретном рейсе.  </p>
 <p>Детальная информация о рейсе, Возможность резервировать место для авторизованных пользователей, просмотр мест пассажиров на этот рейс (включая резервации), Возможность оставить фидбек (только для авторизованных пользователей, которые были зарегистрированы на рейс), и посмотреть фидбеки на этот рейс </p>
 <hr />
+<p><img alt="reserve" src="image-2.png" /></p>
 <p><code>POST /flights/&lt;int:flight_id&gt;/reserve-seat</code> - Позволяет авторизованному пользователю забронировать место на конкретный рейс.</p>
 <p><strong>Тело запроса:</strong><br />
 - Форма с информацией о месте.</p>
 <p>Возвращает ошибку, если место уже занято или пользователь не авторизован. Если все хорошо, перенапрявляет на страницу рейса с обновленной информацией.</p>
 <hr />
+<p><img alt="my-registrations" src="image-3.png" /></p>
 <p><code>GET /flights/my-registrations</code> - Показывает список всех рейсов, на которые авторизованный пользователь забронировал или зарегистрировал место.</p>
 <hr />
 <p><code>POST /flights/&lt;int:flight_id&gt;/delete-registration</code> - Позволяет авторизованному пользователю удалить свою бронь на конкретный рейс.  </p>
 <hr />
+<p><img alt="alt text" src="image-4.png" /></p>
 <p><code>POST /flights/&lt;int:flight_id&gt;/leave-feedback</code> - Позволяет авторизованному пользователю оставить отзыв и оценку для завершенного рейса.  </p>
 <p><strong>Тело запроса:</strong><br />
 - <code>text</code>: Текст отзыва (опционально).
