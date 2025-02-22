@@ -16,3 +16,4 @@ nav:
       - "Авторизация": lab3/auth_endpoints.md
   - "Лаборатораная 4":
       - "Интерфейсы": lab4/index.md
+  - "Задачи leetcode": leetcode/index.md
